@@ -683,15 +683,27 @@ dfu_check_status(const usb_handle_t *handle,
 {
     struct
     {
-        uint8_t status, poll_timeout[3], state, str_idx;
+        uint8_t status;
+        uint8_t poll_timeout[3];
+        uint8_t state;
+        uint8_t str_idx;
     } dfu_status;
+    
     transfer_ret_t transfer_ret;
     
-    return send_usb_control_request(handle, 0xA1, DFU_GET_STATUS, 0, 0, &dfu_status, sizeof(dfu_status), &transfer_ret)
-    && transfer_ret.ret == USB_TRANSFER_OK
-    && transfer_ret.sz == sizeof(dfu_status)
-    && dfu_status.status == status
-    && dfu_status.state == state;
+    // usb_ctrl_req(0xa1, 3, 0, 0)
+    if(send_usb_control_request(handle, 0xA1, DFU_GET_STATUS, 0, 0, &dfu_status, sizeof(dfu_status), &transfer_ret))
+    {
+        // sanity checks
+        if(transfer_ret.ret == USB_TRANSFER_OK
+           && transfer_ret.sz == sizeof(dfu_status)
+           && dfu_status.status == status
+           && dfu_status.state == state)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 static bool
@@ -699,12 +711,21 @@ dfu_set_state_wait_reset(const usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     
-    return send_usb_control_request_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, 0, &transfer_ret)
-    && transfer_ret.ret == USB_TRANSFER_OK
-    && transfer_ret.sz == 0
-    && dfu_check_status(handle, DFU_STATUS_OK, DFU_STATE_MANIFEST_SYNC)
-    && dfu_check_status(handle, DFU_STATUS_OK, DFU_STATE_MANIFEST)
-    && dfu_check_status(handle, DFU_STATUS_OK, DFU_STATE_MANIFEST_WAIT_RESET);
+    // usb_ctrl_req(0x21, 1, 0, 0)
+    if(send_usb_control_request_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, 0, &transfer_ret))
+    {
+        // sanity checks
+        if(transfer_ret.ret == USB_TRANSFER_OK && transfer_ret.sz == 0)
+        {
+            if(dfu_check_status(handle, DFU_STATUS_OK, DFU_STATE_MANIFEST_SYNC)
+               && dfu_check_status(handle, DFU_STATUS_OK, DFU_STATE_MANIFEST)
+               && dfu_check_status(handle, DFU_STATUS_OK, DFU_STATE_MANIFEST_WAIT_RESET))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 static bool
@@ -712,15 +733,21 @@ checkm8_stage_reset(const usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     
-    if(send_usb_control_request_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, DFU_FILE_SUFFIX_LEN, &transfer_ret)
-       && transfer_ret.ret == USB_TRANSFER_OK
-       && transfer_ret.sz == DFU_FILE_SUFFIX_LEN
-       && dfu_set_state_wait_reset(handle)
-       && send_usb_control_request_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, EP0_MAX_PACKET_SZ, &transfer_ret)
-       && transfer_ret.ret == USB_TRANSFER_OK
-       && transfer_ret.sz == EP0_MAX_PACKET_SZ)
+    // usb_ctrl_req(0x21, 1, 0, 0)
+    if(send_usb_control_request_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, DFU_FILE_SUFFIX_LEN, &transfer_ret))
     {
-        return true;
+        if(transfer_ret.ret == USB_TRANSFER_OK
+           && transfer_ret.sz == DFU_FILE_SUFFIX_LEN
+           && dfu_set_state_wait_reset(handle))
+        {
+            if(send_usb_control_request_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, EP0_MAX_PACKET_SZ, &transfer_ret))
+            {
+                if(transfer_ret.ret == USB_TRANSFER_OK && transfer_ret.sz == EP0_MAX_PACKET_SZ)
+                {
+                    return true;
+                }
+            }
+        }
     }
     
     send_usb_control_request_no_data(handle, 0x21, DFU_CLR_STATUS, 0, 0, 0, NULL);
@@ -735,13 +762,21 @@ checkm8_stage_setup(const usb_handle_t *handle)
     
     for(;;)
     {
-        if(send_usb_control_request_async_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, DFU_MAX_TRANSFER_SZ, usb_abort_timeout, &transfer_ret)
-           && transfer_ret.sz < config_overwrite_pad
-           && send_usb_control_request_no_data(handle, 0, 0, 0, 0, config_overwrite_pad - transfer_ret.sz, &transfer_ret)
-           && transfer_ret.ret == USB_TRANSFER_STALL)
+        if(send_usb_control_request_async_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, DFU_MAX_TRANSFER_SZ, usb_abort_timeout, &transfer_ret))
         {
-            return true;
+            if(transfer_ret.sz < config_overwrite_pad)
+            {
+                if(send_usb_control_request_no_data(handle, 0, 0, 0, 0, config_overwrite_pad - transfer_ret.sz, &transfer_ret))
+                {
+                    if(transfer_ret.ret == USB_TRANSFER_STALL)
+                    {
+                        return true;
+                    }
+                }
+            }
         }
+        
+        // re-do
         send_usb_control_request_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, EP0_MAX_PACKET_SZ, NULL);
         usb_abort_timeout = (usb_abort_timeout + 1) % (usb_timeout - usb_abort_timeout_min + 1) + usb_abort_timeout_min;
     }
@@ -753,8 +788,14 @@ checkm8_usb_request_leak(const usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     
-    return send_usb_control_request_async_no_data(handle, 0x80, 6, (3U << 8U) | device_descriptor.i_serial_number, USB_MAX_STRING_DESCRIPTOR_IDX, EP0_MAX_PACKET_SZ, 1, &transfer_ret)
-    && transfer_ret.sz == 0;
+    if(send_usb_control_request_async_no_data(handle, 0x80, 6, (3U << 8U) | device_descriptor.i_serial_number, USB_MAX_STRING_DESCRIPTOR_IDX, EP0_MAX_PACKET_SZ, 1, &transfer_ret))
+    {
+        if(transfer_ret.sz == 0)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 static void
@@ -765,10 +806,15 @@ checkm8_stall(const usb_handle_t *handle)
     
     for(;;)
     {
-        if(send_usb_control_request_async_no_data(handle, 0x80, 6, (3U << 8U) | device_descriptor.i_serial_number, USB_MAX_STRING_DESCRIPTOR_IDX, 3 * EP0_MAX_PACKET_SZ, usb_abort_timeout, &transfer_ret)
-           && transfer_ret.sz < 3 * EP0_MAX_PACKET_SZ && checkm8_usb_request_leak(handle))
+        if(send_usb_control_request_async_no_data(handle, 0x80, 6, (3U << 8U) | device_descriptor.i_serial_number, USB_MAX_STRING_DESCRIPTOR_IDX, 3 * EP0_MAX_PACKET_SZ, usb_abort_timeout, &transfer_ret))
         {
-            break;
+            if(transfer_ret.sz < 3 * EP0_MAX_PACKET_SZ)
+            {
+                if(checkm8_usb_request_leak(handle))
+                {
+                    break;
+                }
+            }
         }
         usb_abort_timeout = (usb_abort_timeout + 1) % (usb_timeout - usb_abort_timeout_min + 1) + usb_abort_timeout_min;
     }
@@ -779,8 +825,14 @@ checkm8_no_leak(const usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     
-    return send_usb_control_request_async_no_data(handle, 0x80, 6, (3U << 8U) | device_descriptor.i_serial_number, USB_MAX_STRING_DESCRIPTOR_IDX, 3 * EP0_MAX_PACKET_SZ + 1, 1, &transfer_ret)
-    && transfer_ret.sz == 0;
+    if(send_usb_control_request_async_no_data(handle, 0x80, 6, (3U << 8U) | device_descriptor.i_serial_number, USB_MAX_STRING_DESCRIPTOR_IDX, 3 * EP0_MAX_PACKET_SZ + 1, 1, &transfer_ret))
+    {
+        if(transfer_ret.sz == 0)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 static bool
@@ -788,8 +840,14 @@ checkm8_usb_request_stall(const usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     
-    return send_usb_control_request_no_data(handle, 2, 3, 0, 0x80, 0, &transfer_ret)
-    && transfer_ret.ret == USB_TRANSFER_STALL;
+    if(send_usb_control_request_no_data(handle, 2, 3, 0, 0x80, 0, &transfer_ret))
+    {
+        if(transfer_ret.ret == USB_TRANSFER_STALL)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 static bool
@@ -914,17 +972,21 @@ checkm8_stage_patch(const usb_handle_t *handle)
         send_usb_control_request_no_data(handle, 2, 3, 0, 0x80, 0, NULL);
     }
     
-    if(p != NULL
-       && send_usb_control_request(handle, 0x00, 0, 0, 0x00, p, 0x30, &transfer_ret)
-       && transfer_ret.ret == USB_TRANSFER_STALL)
+    if(p != NULL)
     {
-        ret = true;
-        for(i = 0; ret && i < data_sz; i += packet_sz)
+        if(send_usb_control_request(handle, 0x00, 0, 0, 0x00, p, 0x30, &transfer_ret))
         {
-            packet_sz = MIN(data_sz - i, DFU_MAX_TRANSFER_SZ);
-            ret = send_usb_control_request(handle, 0x21, DFU_DNLOAD, 0, 0, &data[i], packet_sz, NULL);
+            if(transfer_ret.ret == USB_TRANSFER_STALL)
+            {
+                ret = true;
+                for(i = 0; ret && i < data_sz; i += packet_sz)
+                {
+                    packet_sz = MIN(data_sz - i, DFU_MAX_TRANSFER_SZ);
+                    ret = send_usb_control_request(handle, 0x21, DFU_DNLOAD, 0, 0, &data[i], packet_sz, NULL);
+                }
+                send_usb_control_request_no_data(handle, 0x21, 4, 0, 0, 0, NULL);
+            }
         }
-        send_usb_control_request_no_data(handle, 0x21, 4, 0, 0, 0, NULL);
     }
     free(data);
     return ret;
