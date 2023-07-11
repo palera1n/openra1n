@@ -89,7 +89,8 @@ enum usb_transfer
 {
     USB_TRANSFER_OK,
     USB_TRANSFER_ERROR,
-    USB_TRANSFER_STALL
+    USB_TRANSFER_STALL,
+    USB_TRANSFER_TIMEOUT,
 };
 
 typedef struct
@@ -198,6 +199,10 @@ send_usb_control_request(const usb_handle_t *handle,
         {
             transfer_ret->ret = USB_TRANSFER_STALL;
         }
+        else if(ret == LIBUSB_ERROR_TIMEOUT)
+        {
+            transfer_ret->ret = USB_TRANSFER_TIMEOUT;
+        }
         else
         {
             transfer_ret->ret = USB_TRANSFER_ERROR;
@@ -256,6 +261,10 @@ send_usb_control_request_async(const usb_handle_t *handle,
                         else if(transfer->status == LIBUSB_TRANSFER_STALL)
                         {
                             transfer_ret->ret = USB_TRANSFER_STALL;
+                        }
+                        else if(transfer->status == LIBUSB_TRANSFER_TIMEOUT)
+                        {
+                            transfer_ret->ret = USB_TRANSFER_TIMEOUT;
                         }
                         else
                         {
@@ -429,6 +438,14 @@ usb_async_cb(void *refcon,
         {
             transfer_ret->ret = USB_TRANSFER_STALL;
         }
+        else if(ret == kIOReturnTimeout)
+        {
+            transfer_ret->ret = USB_TRANSFER_TIMEOUT;
+        }
+        else if(ret == kIOUSBTransactionTimeout)
+        {
+            transfer_ret->ret = USB_TRANSFER_TIMEOUT;
+        }
         else
         {
             transfer_ret->ret = USB_TRANSFER_ERROR;
@@ -469,6 +486,14 @@ send_usb_control_request(const usb_handle_t *handle,
         else if(ret == kUSBPipeStalled)
         {
             transfer_ret->ret = USB_TRANSFER_STALL;
+        }
+        else if(ret == kIOReturnTimeout)
+        {
+            transfer_ret->ret = USB_TRANSFER_TIMEOUT;
+        }
+        else if(ret == kIOUSBTransactionTimeout)
+        {
+            transfer_ret->ret = USB_TRANSFER_TIMEOUT;
         }
         else
         {
@@ -1000,7 +1025,7 @@ static void compress_pongo(void *out,
     *out_len = LZ4_compress_HC(payloads_Pongo_bin, out, len, out_len_, LZ4HC_CLEVEL_MAX);
 }
 
-static void checkm8_boot_pongo(usb_handle_t *handle)
+static bool checkm8_boot_pongo(usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     LOG_INFO("Booting pongoOS");
@@ -1036,11 +1061,16 @@ static void checkm8_boot_pongo(usb_handle_t *handle)
         retry:
             size = ((out_len - len) > 0x800) ? 0x800 : (out_len - len);
             send_usb_control_request(handle, 0x21, DFU_DNLOAD, 0, 0, (unsigned char*)&out[len], size, &transfer_ret);
-            if(transfer_ret.sz != size || transfer_ret.ret != USB_TRANSFER_OK)
+            if(transfer_ret.ret == USB_TRANSFER_TIMEOUT)
             {
                 LOG_DEBUG("retrying at len = %zu", len);
                 sleep_ms(100);
                 goto retry;
+            }
+            else if(transfer_ret.sz != size || transfer_ret.ret != USB_TRANSFER_OK)
+            {
+                // fail
+                return false;
             }
             len += size;
             LOG_DEBUG("len = %zu", len);
@@ -1048,6 +1078,7 @@ static void checkm8_boot_pongo(usb_handle_t *handle)
     }
     send_usb_control_request_no_data(handle, 0x21, 4, 0, 0, 0, NULL);
     LOG_DEBUG("pongoOS sent, should be booting");
+    return true;
 }
 
 static bool
