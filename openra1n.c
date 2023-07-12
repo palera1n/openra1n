@@ -871,14 +871,16 @@ checkm8_stage_reset(const usb_handle_t *handle)
     if(send_usb_control_request_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, DFU_FILE_SUFFIX_LEN, &transfer_ret))
     {
         if(transfer_ret.ret == USB_TRANSFER_OK
-           && transfer_ret.sz == DFU_FILE_SUFFIX_LEN
-           && dfu_set_state_wait_reset(handle))
+           && transfer_ret.sz == DFU_FILE_SUFFIX_LEN)
         {
-            if(send_usb_control_request_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, EP0_MAX_PACKET_SZ, &transfer_ret))
+            if(dfu_set_state_wait_reset(handle))
             {
-                if(transfer_ret.ret == USB_TRANSFER_OK && transfer_ret.sz == EP0_MAX_PACKET_SZ)
+                if(send_usb_control_request_no_data(handle, 0x21, DFU_DNLOAD, 0, 0, EP0_MAX_PACKET_SZ, &transfer_ret))
                 {
-                    return true;
+                    if(transfer_ret.ret == USB_TRANSFER_OK && transfer_ret.sz == EP0_MAX_PACKET_SZ)
+                    {
+                        return true;
+                    }
                 }
             }
         }
