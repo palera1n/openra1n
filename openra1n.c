@@ -277,7 +277,7 @@ send_usb_control_request_async(const usb_handle_t *handle,
                         {
                             transfer_ret->ret = USB_TRANSFER_STALL;
                         }
-                        else if(transfer->status == LIBUSB_TRANSFER_TIMEOUT)
+                        else if(transfer->status == LIBUSB_TRANSFER_TIMED_OUT)
                         {
                             transfer_ret->ret = USB_TRANSFER_TIMEOUT;
                         }
