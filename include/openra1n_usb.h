@@ -83,7 +83,7 @@ typedef struct
     dfu_callback_t callback;
 } checkm8_overwrite_t;
 
-static struct
+struct
 {
     uint8_t b_len, b_descriptor_type;
     uint16_t bcd_usb;
