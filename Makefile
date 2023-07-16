@@ -1,7 +1,7 @@
 CFLAGS = -I./include -Wall -Wno-pointer-sign
 CFLAGS += -Os
 BIN = openra1n
-SOURCE = openra1n.c common.c checkm8.c usb.c usb_iokit.c usb_libusb.c lz4/lz4.c lz4/lz4hc.c
+SOURCE = openra1n.c common.c checkm8.c boot_pongo.c usb.c usb_iokit.c usb_libusb.c lz4/lz4.c lz4/lz4hc.c
 ifeq ($(LIBUSB),1)
 	CC = gcc
 	CFLAGS += -DHAVE_LIBUSB
