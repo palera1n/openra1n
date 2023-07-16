@@ -28,8 +28,6 @@ int main(int argc, char **argv)
     usb_timeout = 5;
     usb_abort_timeout_min = 0;
     LOG_INFO("Waiting for DFU mode device");
-    checkm8(&handle);
-    sleep_ms(3000);
-    checkm8_boot_pongo(&handle);
+    do_openra1n(&handle);
     return ret;
 }

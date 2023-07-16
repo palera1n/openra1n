@@ -196,7 +196,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             bootstrap_task_lr                   = 0x180015f78;
             payload_start_offset                = 0x600;
         }
-        if(cpid != 0)
+        
         {
             *(bool *)pwned = strstr(usb_serial_num, pwnd_str) != NULL;
             ret = true;
@@ -755,7 +755,7 @@ static bool compress_pongo(void *inbuf,
     return true;
 }
 
-bool checkm8_boot_pongo(usb_handle_t *handle)
+static bool checkm8_boot_pongo(usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     LOG_INFO("Booting pongoOS");
@@ -764,12 +764,16 @@ bool checkm8_boot_pongo(usb_handle_t *handle)
     size_t out_len = 0;
     
     LOG_DEBUG("Compressing pongoOS");
-    compress_pongo(payloads_Pongo_bin, payloads_Pongo_bin_len, &out, &out_len);
     
-    LOG_DEBUG("Reconnecting to device");
-    init_usb_handle(handle, APPLE_VID, DFU_MODE_PID);
-    LOG_DEBUG("Waiting for device to be ready");
-    wait_usb_handle(handle, NULL, NULL);
+    if(!compress_pongo(payloads_Pongo_bin, payloads_Pongo_bin_len, &out, &out_len))
+    {
+        return false;
+    }
+    
+    //LOG_DEBUG("Reconnecting to device");
+    //init_usb_handle(handle, APPLE_VID, DFU_MODE_PID);
+    //LOG_DEBUG("Waiting for device to be ready");
+    //wait_usb_handle(handle, NULL, NULL);
     {
         size_t len = 0;
         size_t size;
@@ -795,10 +799,15 @@ bool checkm8_boot_pongo(usb_handle_t *handle)
     }
     send_usb_control_request_no_data(handle, 0x21, 4, 0, 0, 0, NULL);
     LOG_DEBUG("pongoOS sent, should be booting");
+    
+    if(out)
+    {
+        free(out);
+    }
     return true;
 }
 
-bool checkm8(usb_handle_t *handle)
+bool do_openra1n(usb_handle_t *handle)
 {
     enum
     {
@@ -806,12 +815,11 @@ bool checkm8(usb_handle_t *handle)
         STAGE_SETUP,
         STAGE_SPRAY,
         STAGE_PATCH,
-        STAGE_PWNED
     } stage = STAGE_RESET;
     bool ret, pwned;
     
     init_usb_handle(handle, APPLE_VID, DFU_MODE_PID);
-    while(stage != STAGE_PWNED && wait_usb_handle(handle, checkm8_check_usb_device, &pwned))
+    while(wait_usb_handle(handle, checkm8_check_usb_device, &pwned))
     {
         if(!pwned)
         {
@@ -850,9 +858,9 @@ bool checkm8(usb_handle_t *handle)
         }
         else
         {
-            stage = STAGE_PWNED;
+            return checkm8_boot_pongo(handle);
         }
         close_usb_handle(handle);
     }
-    return stage == STAGE_PWNED;
+    return false;
 }

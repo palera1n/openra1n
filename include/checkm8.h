@@ -6,7 +6,6 @@
 
 #define MAX_PONGOOS_SIZE    (0x40000)
 
-bool checkm8_boot_pongo(usb_handle_t *handle);
-bool checkm8(usb_handle_t *handle);
+bool do_openra1n(usb_handle_t *handle);
 
 #endif
