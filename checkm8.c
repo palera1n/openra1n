@@ -1,5 +1,6 @@
 #include <openra1n_usb.h>
 #include <common.h>
+#include <checkm8.h>
 
 #include <common/log.h>
 
@@ -699,38 +700,72 @@ static bool checkm8_stage_patch(const usb_handle_t *handle)
     return false;
 }
 
-static void compress_pongo(void *out,
-                           size_t *out_len)
+static bool compress_pongo(void *inbuf,
+                           size_t insize,
+                           void** outbuf,
+                           size_t* outsize)
 {
-    size_t len = payloads_Pongo_bin_len;
-    size_t out_len_ = *out_len;
-    *out_len = LZ4_compress_HC(payloads_Pongo_bin, out, len, out_len_, LZ4HC_CLEVEL_MAX);
+    if(insize > LZ4_MAX_INPUT_SIZE)
+    {
+        LOG_ERROR("Input too large");
+        return false;
+    }
+    
+    size_t tmpsize = LZ4_COMPRESSBOUND(insize);
+    void *tmpbuf = malloc(tmpsize);
+    if(!tmpbuf)
+    {
+        LOG_ERROR("malloc: %s", strerror(errno));
+        return false;
+    }
+    
+    int outlen = LZ4_compress_HC(inbuf, tmpbuf, (int)insize, (int)tmpsize, LZ4HC_CLEVEL_MAX);
+    if(!outlen)
+    {
+        LOG_ERROR("lz4 error");
+        free(tmpbuf);
+        return false;
+    }
+    
+    LOG_DEBUG("Compressed pongoOS from 0x%zx to 0x%llx bytes", insize, (unsigned long long)outlen);
+    
+    if(outlen > (MAX_PONGOOS_SIZE - payloads_lz4dec_bin_len))
+    {
+        LOG_ERROR("pongoOS too large");
+        free(tmpbuf);
+        return false;
+    }
+    
+    *outbuf = malloc(outlen + payloads_lz4dec_bin_len);
+    if(!*outbuf)
+    {
+        LOG_ERROR("malloc: %s", strerror(errno));
+        free(tmpbuf);
+        return false;
+    }
+    
+    LOG_DEBUG("Setting the compressed size into the shellcode");
+    uint32_t* sizebuf = (uint32_t*)(payloads_lz4dec_bin + (payloads_lz4dec_bin_len - 4));
+    sizebuf[0] = outlen;
+    
+    memcpy(*outbuf, payloads_lz4dec_bin, payloads_lz4dec_bin_len);
+    memcpy(*outbuf + payloads_lz4dec_bin_len, tmpbuf, outlen);
+    free(tmpbuf);
+    *outsize = outlen + payloads_lz4dec_bin_len;
+    return true;
 }
 
 bool checkm8_boot_pongo(usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     LOG_INFO("Booting pongoOS");
+    
+    void* out = NULL;
+    size_t out_len = 0;
+    
     LOG_DEBUG("Compressing pongoOS");
-    LOG_DEBUG("Appending shellcode to the top of pongoOS (512 bytes)");
-    void *shellcode = malloc(512);
-    memcpy(shellcode, payloads_lz4dec_bin, payloads_lz4dec_bin_len);
-    size_t out_len = payloads_Pongo_bin_len;
-    void *out = malloc(out_len);
-    compress_pongo(out, &out_len);
-    LOG_DEBUG("Compressed pongoOS from %u to %zu bytes", payloads_Pongo_bin_len, out_len);
-    void *tmp = malloc(out_len + 512);
-    memcpy(tmp, shellcode, 512);
-    memcpy(tmp + 512, out, out_len);
-    free(out);
-    out = tmp;
-    out_len += 512;
-    free(shellcode);
-    LOG_DEBUG("Setting the compressed size into the shellcode");
-    uint32_t* size = (uint32_t*)(out + 0x1fc);
-    LOG_DEBUG("size = 0x%" PRIX32 "", *size);
-    *size = out_len - 512;
-    LOG_DEBUG("size = 0x%" PRIX32 "", *size);
+    compress_pongo(payloads_Pongo_bin, payloads_Pongo_bin_len, &out, &out_len);
+    
     LOG_DEBUG("Reconnecting to device");
     init_usb_handle(handle, APPLE_VID, DFU_MODE_PID);
     LOG_DEBUG("Waiting for device to be ready");
