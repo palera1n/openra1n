@@ -6,6 +6,9 @@
 
 #define MAX_PONGOOS_SIZE    (0x40000)
 
+extern void* custom_pongo;
+extern size_t custom_pongo_len;
+
 bool checkm8_boot_pongo(usb_handle_t *handle);
 
 #endif

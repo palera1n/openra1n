@@ -10,6 +10,9 @@
 #include <payloads/Pongo.bin.h>
 #include <payloads/lz4dec.bin.h>
 
+void* custom_pongo = NULL;
+size_t custom_pongo_len = 0;
+
 extern uint8_t payloads_Pongo_bin[], payloads_lz4dec_bin[];
 extern unsigned payloads_Pongo_bin_len, payloads_lz4dec_bin_len;
 
@@ -73,12 +76,27 @@ bool checkm8_boot_pongo(usb_handle_t *handle)
     transfer_ret_t transfer_ret;
     LOG_INFO("Booting pongoOS");
     
+    void* pongo_buf = NULL;
+    size_t pongo_size = 0;
+    
     void* out = NULL;
     size_t out_len = 0;
     
     LOG_DEBUG("Compressing pongoOS");
     
-    if(!compress_pongo(payloads_Pongo_bin, payloads_Pongo_bin_len, &out, &out_len))
+    if(custom_pongo != NULL && custom_pongo_len != 0)
+    {
+        LOG_INFO("Using custom pongoOS");
+        pongo_buf = custom_pongo;
+        pongo_size = custom_pongo_len;
+    }
+    else
+    {
+        pongo_buf = payloads_Pongo_bin;
+        pongo_size = payloads_Pongo_bin_len;
+    }
+    
+    if(!compress_pongo(pongo_buf, pongo_size, &out, &out_len))
     {
         return false;
     }
