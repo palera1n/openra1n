@@ -1,5 +1,5 @@
 #ifdef HAVE_LIBUSB
-#include <openra1n_private.h>
+#include <openra1n.h>
 #include <common.h>
 
 static libusb_context* ctx = NULL;
@@ -25,7 +25,7 @@ int openra1n_wait_usb_handle(usb_handle_t *handle, void *arg)
         {
             if((handle->device = libusb_open_device_with_vid_pid(ctx, handle->vid, handle->pid)) != NULL)
             {
-                if(libusb_set_configuration(handle->device, 1) == LIBUSB_SUCCESS && cpid = openra1n_check_usb_device(handle, arg))
+                if(libusb_set_configuration(handle->device, 1) == LIBUSB_SUCCESS && (cpid = openra1n_check_usb_device(handle, arg)))
                 {
                     return cpid;
                 }
