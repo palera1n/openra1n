@@ -1,5 +1,6 @@
 #ifndef HAVE_LIBUSB
-#include <openra1n_usb.h>
+#include <openra1n.h>
+#include <openra1n_private.h>
 #include <common.h>
 
 static void cf_dictionary_set_int16(CFMutableDictionaryRef dict,
@@ -41,7 +42,7 @@ static void close_usb_device(usb_handle_t *handle)
     (*handle->device)->Release(handle->device);
 }
 
-void close_usb_handle(usb_handle_t *handle)
+OPENRA1N_EXPORT void openra1n_close_usb_handle(usb_handle_t *handle)
 {
     close_usb_device(handle);
 }
@@ -74,15 +75,13 @@ static bool open_usb_device(io_service_t serv,
     return ret;
 }
 
-bool wait_usb_handle(usb_handle_t *handle,
-                     usb_check_cb_t usb_check_cb,
-                     void *arg)
+int openra1n_wait_usb_handle(usb_handle_t *handle, void *arg)
 {
     CFMutableDictionaryRef matching_dict;
     const char *darwin_device_class;
     io_iterator_t iter;
     io_service_t serv;
-    bool ret = false;
+    int cpid = 0;
     
 #if TARGET_OS_IPHONE
     darwin_device_class = "IOUSBHostDevice";
@@ -99,26 +98,25 @@ bool wait_usb_handle(usb_handle_t *handle,
             {
                 if(open_usb_device(serv, handle))
                 {
-                    if(usb_check_cb == NULL || usb_check_cb(handle, arg))
+                    if(cpid = openra1n_check_usb_device(handle, arg))
                     {
-                        ret = true;
                         break;
                     }
                     close_usb_device(handle);
                 }
             }
             IOObjectRelease(iter);
-            if(ret)
+            if(cpid)
             {
                 break;
             }
-            sleep_ms(usb_timeout);
+            openra1n_sleep_ms(usb_timeout);
         }
     }
-    return ret;
+    return cpid;
 }
 
-void reset_usb_handle(usb_handle_t *handle)
+OPENRA1N_EXPORT void openra1n_reset_usb_handle(usb_handle_t *handle)
 {
     (*handle->device)->ResetDevice(handle->device);
     (*handle->device)->USBDeviceReEnumerate(handle->device, 0);
@@ -227,7 +225,7 @@ bool send_usb_control_request_async(const usb_handle_t *handle,
     req.completionTimeout = req.noDataTimeout = usb_timeout;
     if((*handle->device)->DeviceRequestAsyncTO(handle->device, &req, usb_async_cb, transfer_ret) == kIOReturnSuccess)
     {
-        sleep_ms(usb_abort_timeout);
+        openra1n_sleep_ms(usb_abort_timeout);
         if((*handle->device)->USBDeviceAbortPipeZero(handle->device) == kIOReturnSuccess)
         {
             CFRunLoopRun();
@@ -235,15 +233,6 @@ bool send_usb_control_request_async(const usb_handle_t *handle,
         }
     }
     return false;
-}
-
-void init_usb_handle(usb_handle_t *handle,
-                     uint16_t vid,
-                     uint16_t pid)
-{
-    handle->vid = vid;
-    handle->pid = pid;
-    handle->device = NULL;
 }
 
 #endif

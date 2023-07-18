@@ -1,48 +1,48 @@
-#ifndef OPENRA1N_USB_H
-#define OPENRA1N_USB_H
+#ifndef openra1n_private_H
+#define openra1n_private_H
 
 #ifdef HAVE_LIBUSB
-#    include <libusb-1.0/libusb.h>
-#    include <stdbool.h>
-#    include <string.h>
-#    include <stddef.h>
-#    include <stdlib.h>
-#    include <inttypes.h>
+#include <libusb-1.0/libusb.h>
+#include <stdbool.h>
+#include <string.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <inttypes.h>
 #else
-#    include <CommonCrypto/CommonCrypto.h>
-#    include <CoreFoundation/CoreFoundation.h>
-#    include <IOKit/IOCFPlugIn.h>
-#    include <IOKit/usb/IOUSBLib.h>
+#include <CommonCrypto/CommonCrypto.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/IOCFPlugIn.h>
+#include <IOKit/usb/IOUSBLib.h>
 
-#    if TARGET_OS_IPHONE
-#        define kUSBPipeStalled kUSBHostReturnPipeStalled
-#    else
-#        define kUSBPipeStalled kIOUSBPipeStalled
-#    endif
+#if TARGET_OS_IPHONE
+#define kUSBPipeStalled kUSBHostReturnPipeStalled
+#else
+#define kUSBPipeStalled kIOUSBPipeStalled
+#endif
 
 #endif
 
-#define DFU_DNLOAD                      (1)
-#define APPLE_VID                       (0x5AC)
-#define DFU_STATUS_OK                   (0)
-#define DFU_GET_STATUS                  (3)
-#define DFU_CLR_STATUS                  (4)
-#define MAX_BLOCK_SZ                    (0x50)
-#define DFU_MODE_PID                    (0x1227)
-#define DFU_STATE_MANIFEST              (7)
-#define EP0_MAX_PACKET_SZ               (0x40)
-#define DFU_FILE_SUFFIX_LEN             (16)
-#define DFU_MAX_TRANSFER_SZ             (0x800)
-#define DFU_STATE_MANIFEST_SYNC         (6)
-#define ARM_16K_TT_L2_SZ                (0x2000000U)
-#define DFU_STATE_MANIFEST_WAIT_RESET   (8)
-#define USB_MAX_STRING_DESCRIPTOR_IDX   (10)
+#define DFU_DNLOAD (1)
+#define APPLE_VID (0x5AC)
+#define DFU_STATUS_OK (0)
+#define DFU_GET_STATUS (3)
+#define DFU_CLR_STATUS (4)
+#define MAX_BLOCK_SZ (0x50)
+#define DFU_MODE_PID (0x1227)
+#define DFU_STATE_MANIFEST (7)
+#define EP0_MAX_PACKET_SZ (0x40)
+#define DFU_FILE_SUFFIX_LEN (16)
+#define DFU_MAX_TRANSFER_SZ (0x800)
+#define DFU_STATE_MANIFEST_SYNC (6)
+#define ARM_16K_TT_L2_SZ (0x2000000U)
+#define DFU_STATE_MANIFEST_WAIT_RESET (8)
+#define USB_MAX_STRING_DESCRIPTOR_IDX (10)
 
 #ifndef MIN
-#    define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-typedef struct
+typedef struct usb_handle
 {
     uint16_t vid, pid;
 #ifdef HAVE_LIBUSB
@@ -54,7 +54,7 @@ typedef struct
 #endif
 } usb_handle_t;
 
-typedef bool (*usb_check_cb_t)(usb_handle_t *, void *);
+typedef int (*usb_check_cb_t)(usb_handle_t *, void *);
 
 enum usb_transfer
 {
@@ -81,7 +81,7 @@ typedef struct
 typedef struct
 {
     dfu_callback_t callback;
-} checkm8_overwrite_t;
+} openra1n_overwrite_t;
 
 struct
 {
@@ -92,18 +92,8 @@ struct
     uint8_t i_manufacturer, i_product, i_serial_number, b_num_configurations;
 } device_descriptor;
 
-extern unsigned usb_timeout, usb_abort_timeout_min;
+extern unsigned int usb_timeout, usb_abort_timeout_min;
 
-#ifdef HAVE_LIBUSB
-void reset_usb_handle(const usb_handle_t *handle);
-#else
-void reset_usb_handle(usb_handle_t *handle);
-#endif
-
-void close_usb_handle(usb_handle_t *handle);
-bool wait_usb_handle(usb_handle_t *handle,
-                     usb_check_cb_t usb_check_cb,
-                     void *arg);
 bool send_usb_control_request(const usb_handle_t *handle,
                               uint8_t bm_request_type,
                               uint8_t b_request,
@@ -121,9 +111,6 @@ bool send_usb_control_request_async(const usb_handle_t *handle,
                                     size_t w_len,
                                     unsigned usb_abort_timeout,
                                     transfer_ret_t *transfer_ret);
-void init_usb_handle(usb_handle_t *handle,
-                     uint16_t vid,
-                     uint16_t pid);
 
 bool send_usb_control_request_no_data(const usb_handle_t *handle,
                                       uint8_t bm_request_type,
@@ -142,4 +129,6 @@ bool send_usb_control_request_async_no_data(const usb_handle_t *handle,
                                             transfer_ret_t *transfer_ret);
 char *get_usb_serial_number(usb_handle_t *handle);
 
+int openra1n_check_usb_device(usb_handle_t *handle,
+                              void *pwned);
 #endif

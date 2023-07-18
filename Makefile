@@ -1,35 +1,42 @@
-CFLAGS = -I./include -Wall -Wno-pointer-sign
+CFLAGS = -I$(shell pwd)/include -Wall -Wno-pointer-sign -fsanitize=address,undefined -g
+CFLAGS +=  -fvisibility=hidden
 CFLAGS += -Os
-BIN = openra1n
-SOURCE = openra1n.c common.c checkm8.c usb.c usb_iokit.c usb_libusb.c lz4/lz4.c lz4/lz4hc.c
+AR = ar
+RANLIB = ranlib
+
 ifeq ($(LIBUSB),1)
 	CC = gcc
 	CFLAGS += -DHAVE_LIBUSB
-	LDFLAGS += -lusb-1.0
+	LIBS += -lusb-1.0
 else
-	CC = xcrun -sdk macosx gcc
-	CFLAGS += -arch x86_64 -arch arm64
-	LDFLAGS += -framework IOKit -framework CoreFoundation
+	CC = xcrun -sdk macosx cc
+	LIBS += -framework IOKit -framework CoreFoundation
 endif
 
-.PHONY: all clean payloads openra1n
+export CC AR RANLIB CFLAGS LDFLAGS LIBS
 
-all: payloads openra1n
+all: openra1n libopenra1n
 
-payloads:
+include/payloads:
 	@mkdir -p include/payloads
-	@for file in payloads/*; do \
-		echo " XXD    $$file"; \
-		xxd -i $$file > include/$$file.h; \
-	done
 
-openra1n: payloads
-	@echo " CC     $(BIN)"
-	@$(CC) $(CFLAGS) $(SOURCE) $(LDFLAGS) -o $(BIN)
-	strip $(BIN)
+include/payloads/%.h: payloads/%.bin include/payloads
+	xxd -i $< >> $@
+
+payloads: $(patsubst %, include/payloads/%.h, lz4dec Pongo t7000 t7001 s8000 s8001 s8003 t8010 t8011 t8012 t8015)
+
+lz4:
+	$(MAKE) -C lz4
+
+libopenra1n: payloads lz4
+	$(MAKE) -C src
+
+openra1n: payloads libopenra1n
+	$(MAKE) -C tools
 
 clean:
-	@echo " CLEAN  $(BIN)"
-	@rm -f $(BIN)
-	@echo " CLEAN  include/payloads"
-	@rm -rf include/payloads
+	$(MAKE) -C tools clean
+	$(MAKE) -C src clean
+	$(MAKE) -C lz4 clean
+
+.PHONY: all clean payloads openra1n libopenra1n lz4

@@ -1,7 +1,23 @@
-#include <openra1n_usb.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <openra1n.h>
+#include <openra1n_private.h>
 #include <common.h>
 
-unsigned usb_timeout, usb_abort_timeout_min;
+unsigned int usb_timeout = 5, usb_abort_timeout_min = 0;
+
+OPENRA1N_EXPORT void openra1n_set_usb_timeout(unsigned int timeout) {
+    usb_timeout = timeout;
+}
+
+OPENRA1N_EXPORT void openra1n_set_usb_abort_timeout_min(unsigned int timeout) {
+    usb_abort_timeout_min = timeout; 
+}
+
+OPENRA1N_EXPORT void openra1n_free_handle(usb_handle_t* handle) {
+    free(handle);
+}
 
 bool send_usb_control_request_no_data(const usb_handle_t *handle,
                                       uint8_t bm_request_type,
@@ -81,3 +97,16 @@ char *get_usb_serial_number(usb_handle_t *handle)
     return str;
 }
 
+usb_handle_t* openra1n_init_usb_handle(
+                     uint16_t vid,
+                     uint16_t pid)
+{
+    usb_handle_t* handle = malloc(sizeof(usb_handle_t));
+    if (handle == NULL) {
+        return NULL;
+    }
+    handle->vid = vid;
+    handle->pid = pid;
+    handle->device = NULL;
+    return handle;
+}

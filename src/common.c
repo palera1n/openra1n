@@ -4,7 +4,9 @@
 #   include <time.h>
 #endif
 
-void sleep_ms(unsigned ms)
+#include <openra1n.h>
+
+OPENRA1N_EXPORT void openra1n_sleep_ms(unsigned int ms)
 {
 #ifdef WIN32
     Sleep(ms);

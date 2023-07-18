@@ -1,38 +1,40 @@
 #ifdef HAVE_LIBUSB
-#include <openra1n_usb.h>
+#include <openra1n_private.h>
 #include <common.h>
 
-void close_usb_handle(usb_handle_t *handle)
+static libusb_context* ctx = NULL;
+
+OPENRA1N_EXPORT void openra1n_close_usb_handle(usb_handle_t *handle)
 {
     libusb_close(handle->device);
-    libusb_exit(NULL);
+    libusb_exit(ctx);
+    ctx = NULL;
 }
 
-void reset_usb_handle(const usb_handle_t *handle)
+OPENRA1N_EXPORT void openra1n_reset_usb_handle(usb_handle_t *handle)
 {
     libusb_reset_device(handle->device);
 }
 
-bool wait_usb_handle(usb_handle_t *handle,
-                     usb_check_cb_t usb_check_cb,
-                     void *arg)
+int openra1n_wait_usb_handle(usb_handle_t *handle, void *arg)
 {
-    if(libusb_init(NULL) == LIBUSB_SUCCESS)
+    int cpid;
+    if(libusb_init(&ctx) == LIBUSB_SUCCESS)
     {
         for(;;)
         {
-            if((handle->device = libusb_open_device_with_vid_pid(NULL, handle->vid, handle->pid)) != NULL)
+            if((handle->device = libusb_open_device_with_vid_pid(ctx, handle->vid, handle->pid)) != NULL)
             {
-                if(libusb_set_configuration(handle->device, 1) == LIBUSB_SUCCESS && (usb_check_cb == NULL || usb_check_cb(handle, arg)))
+                if(libusb_set_configuration(handle->device, 1) == LIBUSB_SUCCESS && cpid = openra1n_check_usb_device(handle, arg))
                 {
-                    return true;
+                    return cpid;
                 }
                 libusb_close(handle->device);
             }
-            sleep_ms(usb_timeout);
+            openra1n_sleep_ms(usb_timeout);
         }
     }
-    return false;
+    return 0;
 }
 
 static void usb_async_cb(struct libusb_transfer *transfer)
@@ -103,7 +105,7 @@ bool send_usb_control_request_async(const usb_handle_t *handle,
             {
                 tv.tv_sec = usb_abort_timeout / 1000;
                 tv.tv_usec = (usb_abort_timeout % 1000) * 1000;
-                while(completed == 0 && libusb_handle_events_timeout_completed(NULL, &tv, &completed) == LIBUSB_SUCCESS)
+                while(completed == 0 && libusb_handle_events_timeout_completed(ctx, &tv, &completed) == LIBUSB_SUCCESS)
                 {
                     libusb_cancel_transfer(transfer);
                 }
@@ -140,15 +142,6 @@ bool send_usb_control_request_async(const usb_handle_t *handle,
         libusb_free_transfer(transfer);
     }
     return completed != 0;
-}
-
-void init_usb_handle(usb_handle_t *handle,
-                     uint16_t vid,
-                     uint16_t pid)
-{
-    handle->vid = vid;
-    handle->pid = pid;
-    handle->device = NULL;
 }
 
 #endif
