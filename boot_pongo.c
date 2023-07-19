@@ -21,9 +21,15 @@ static bool compress_pongo(void *inbuf,
                            void** outbuf,
                            size_t* outsize)
 {
-    if(insize > LZ4_MAX_INPUT_SIZE)
+//  if(insize > LZ4_MAX_INPUT_SIZE)
+//  {
+//      LOG_ERROR("Input too large");
+//      return false;
+//  }
+    
+    if(insize > MAX_PONGOOS_RAW_SIZE)
     {
-        LOG_ERROR("Input too large");
+        LOG_ERROR("pongoOS(raw) too large");
         return false;
     }
     
@@ -45,9 +51,9 @@ static bool compress_pongo(void *inbuf,
     
     LOG_DEBUG("Compressed pongoOS from 0x%zx to 0x%llx bytes", insize, (unsigned long long)outlen);
     
-    if(outlen > (MAX_PONGOOS_SIZE - payloads_lz4dec_bin_len))
+    if(outlen > (MAX_PONGOOS_COMPRESSED_SIZE - payloads_lz4dec_bin_len))
     {
-        LOG_ERROR("pongoOS too large");
+        LOG_ERROR("pongoOS(compressed) too large");
         free(tmpbuf);
         return false;
     }

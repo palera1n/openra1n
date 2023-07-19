@@ -84,6 +84,11 @@ int main(int argc, char **argv)
                         usage(argv[0]);
                         return -1;
                     }
+                    if(custom_pongo_len > MAX_PONGOOS_RAW_SIZE)
+                    {
+                        printf("error: pongoOS too large\n");
+                        return -1;
+                    }
                 }
                 else
                 {
