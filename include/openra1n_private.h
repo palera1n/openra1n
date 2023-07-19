@@ -1,5 +1,5 @@
-#ifndef openra1n_private_H
-#define openra1n_private_H
+#ifndef OPENRA1N_PRIVATE_H
+#define OPENRA1N_PRIVATE_H
 
 #ifdef HAVE_LIBUSB
 #include <libusb-1.0/libusb.h>
