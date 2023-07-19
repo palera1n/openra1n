@@ -28,16 +28,21 @@ static uint64_t insecure_memory_base;
 static uint64_t func_gadget, write_prim, write_prim2, arm_clean_invalidate_dcache_line, arm_invalidate_icache, enter_critical_section, exit_critical_section, write_ttbr0, tlbi, TTBR0_PATCH_BASE, TTBR0_BASE, bootstrap_task_lr, payload_start_offset;
 
 static bool checkm8_check_usb_device(usb_handle_t *handle,
-                         void *pwned)
+                                     void *pwned)
 {
     char *usb_serial_num = get_usb_serial_number(handle);
+    char *str = NULL;
     bool ret = false;
     
     if(usb_serial_num != NULL)
     {
-        if(strstr(usb_serial_num, " SRTG:[iBoot-1991.0.0.2.16]") != NULL)
+        if((str = strstr(usb_serial_num, "CPID:")) != NULL)
         {
-            cpid = 0x7001;
+            sscanf(str, "CPID:%x", (unsigned int *)&cpid);
+        }
+        
+        if(cpid == 0x7001)
+        {
             config_overwrite_pad = 0x500;
             
             insecure_memory_base                = 0x180380000;
@@ -48,9 +53,8 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             bootstrap_task_lr                   = 0x1800c2f68;
             payload_start_offset                = 0xc0;
         }
-        else if(strstr(usb_serial_num, " SRTG:[iBoot-1992.0.0.1.19]") != NULL)
+        else if(cpid == 0x7000)
         {
-            cpid = 0x7000;
             config_overwrite_pad = 0x500;
             
             insecure_memory_base                = 0x180380000;
@@ -61,9 +65,8 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             bootstrap_task_lr                   = 0x1800c2f68;
             payload_start_offset                = 0xc0;
         }
-        else if(strstr(usb_serial_num, " SRTG:[iBoot-2234.0.0.2.22]") != NULL)
+        else if(cpid == 0x8003)
         {
-            cpid = 0x8003;
             config_overwrite_pad = 0x500;
             
             insecure_memory_base                = 0x180380000;
@@ -75,9 +78,8 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             payload_start_offset                = 0xc0;
             
         }
-        else if(strstr(usb_serial_num, " SRTG:[iBoot-2234.0.0.3.3]") != NULL)
+        else if(cpid == 0x8000)
         {
-            cpid = 0x8000;
             config_overwrite_pad = 0x500;
             
             insecure_memory_base                = 0x180380000;
@@ -88,9 +90,8 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             bootstrap_task_lr                   = 0x1800c2f58;
             payload_start_offset                = 0xc0;
         }
-        else if(strstr(usb_serial_num, " SRTG:[iBoot-2481.0.0.2.1]") != NULL)
+        else if(cpid == 0x8001)
         {
-            cpid = 0x8001;
             config_hole = 6;
             config_overwrite_pad = 0x5C0;
             
@@ -108,9 +109,8 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             bootstrap_task_lr                   = 0x180059f58;
             payload_start_offset                = 0x600;
         }
-        else if(strstr(usb_serial_num, " SRTG:[iBoot-2696.0.0.1.33]") != NULL)
+        else if(cpid == 0x8010)
         {
-            cpid = 0x8010;
             config_hole = 5;
             config_overwrite_pad = 0x5C0;
             
@@ -128,9 +128,8 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             bootstrap_task_lr                   = 0x1800a9f68;
             payload_start_offset                = 0x600;
         }
-        else if(strstr(usb_serial_num, " SRTG:[iBoot-3135.0.0.2.3]") != NULL)
+        else if(cpid == 0x8011)
         {
-            cpid = 0x8011;
             config_hole = 6;
             config_overwrite_pad = 0x540;
             
@@ -148,9 +147,8 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             bootstrap_task_lr                   = 0x1800a9f88;
             payload_start_offset                = 0x600;
         }
-        else if(strstr(usb_serial_num, " SRTG:[iBoot-3332.0.0.1.23]") != NULL)
+        else if(cpid == 0x8015)
         {
-            cpid = 0x8015;
             config_hole = 6;
             config_overwrite_pad = 0x540;
             
@@ -168,9 +166,8 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             bootstrap_task_lr                   = 0x180015f88;
             payload_start_offset                = 0x600;
         }
-        else if(strstr(usb_serial_num, " SRTG:[iBoot-3401.0.0.1.16]") != NULL)
+        else if(cpid == 0x8012)
         {
-            cpid = 0x8012;
             config_hole = 6;
             config_overwrite_pad = 0x540;
             
@@ -189,6 +186,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             payload_start_offset                = 0x600;
         }
         
+        if(cpid)
         {
             *(bool *)pwned = strstr(usb_serial_num, pwnd_str) != NULL;
             ret = true;
@@ -199,8 +197,8 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
 }
 
 static bool dfu_check_status(const usb_handle_t *handle,
-                 uint8_t status,
-                 uint8_t state)
+                             uint8_t status,
+                             uint8_t state)
 {
     struct
     {
