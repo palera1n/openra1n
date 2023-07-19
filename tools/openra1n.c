@@ -23,17 +23,17 @@
 
 #include <common/log.h>
 
-#include <payloads/s8000.bin.h>
-#include <payloads/s8001.bin.h>
-#include <payloads/s8003.bin.h>
-#include <payloads/t7000.bin.h>
-#include <payloads/t7001.bin.h>
-#include <payloads/t8010.bin.h>
-#include <payloads/t8011.bin.h>
-#include <payloads/t8012.bin.h>
-#include <payloads/t8015.bin.h>
+#include <payloads/s8000.h>
+#include <payloads/s8001.h>
+#include <payloads/s8003.h>
+#include <payloads/t7000.h>
+#include <payloads/t7001.h>
+#include <payloads/t8010.h>
+#include <payloads/t8011.h>
+#include <payloads/t8012.h>
+#include <payloads/t8015.h>
 
-#include <payloads/Pongo.bin.h>
+#include <payloads/Pongo.h>
 
 extern uint8_t payloads_s8000_bin[], payloads_s8001_bin[], payloads_s8003_bin[], payloads_t7000_bin[], payloads_t7001_bin[], payloads_t8010_bin[], payloads_t8011_bin[], payloads_t8012_bin[], payloads_t8015_bin[];
 extern unsigned payloads_s8000_bin_len, payloads_s8001_bin_len, payloads_s8003_bin_len, payloads_t7000_bin_len, payloads_t7001_bin_len, payloads_t8010_bin_len, payloads_t8011_bin_len, payloads_t8012_bin_len, payloads_t8015_bin_len;

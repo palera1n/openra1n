@@ -8,8 +8,13 @@
 #include <lz4/lz4.h>
 #include <lz4/lz4hc.h>
 
+#ifdef __MINGW32__
+#include <windows.h>
+#include <winsock2.y>
+#else
 #include <arpa/inet.h>
-#include <payloads/lz4dec.bin.h>
+#endif
+#include <payloads/lz4dec.h>
 
 #define ARM_16K_TT_L2_SHIFT      25                    /* page descriptor shift */
 

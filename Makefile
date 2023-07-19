@@ -38,5 +38,6 @@ clean:
 	$(MAKE) -C tools clean
 	$(MAKE) -C src clean
 	$(MAKE) -C lz4 clean
+	rm -rf include/payloads
 
 .PHONY: all clean payloads openra1n libopenra1n lz4
