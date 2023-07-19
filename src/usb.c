@@ -6,6 +6,7 @@
 #include <common.h>
 
 unsigned int usb_timeout = 5, usb_abort_timeout_min = 0;
+device_descriptor_t device_descriptor;
 
 OPENRA1N_EXPORT void openra1n_set_usb_timeout(unsigned int timeout) {
     usb_timeout = timeout;

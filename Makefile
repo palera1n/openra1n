@@ -13,6 +13,10 @@ else
 	LIBS += -framework IOKit -framework CoreFoundation
 endif
 
+ifneq (,$(findstring MINGW, $(shell uname -s)))
+	LIBS += -lws2_32
+endif
+
 export CC AR RANLIB CFLAGS LDFLAGS LIBS
 
 all: openra1n libopenra1n
