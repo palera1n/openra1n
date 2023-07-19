@@ -2,6 +2,7 @@
 #include <common.h>
 
 unsigned usb_timeout, usb_abort_timeout_min;
+device_descriptor_t device_descriptor;
 
 bool send_usb_control_request_no_data(const usb_handle_t *handle,
                                       uint8_t bm_request_type,
