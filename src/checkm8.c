@@ -10,7 +10,7 @@
 
 #ifdef __MINGW32__
 #include <windows.h>
-#include <winsock2.y>
+#include <winsock2.h>
 #else
 #include <arpa/inet.h>
 #endif
