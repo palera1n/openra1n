@@ -14,15 +14,15 @@
 #else
 #include <arpa/inet.h>
 #endif
-#include <payloads/lz4dec.h>
+#include <payloads.h>
 
 #define ARM_16K_TT_L2_SHIFT      25                    /* page descriptor shift */
 
-extern uint8_t payloads_s8000_bin[], payloads_s8001_bin[], payloads_s8003_bin[], payloads_t7000_bin[], payloads_t7001_bin[], payloads_t8010_bin[], payloads_t8011_bin[], payloads_t8012_bin[], payloads_t8015_bin[];
-extern unsigned payloads_s8000_bin_len, payloads_s8001_bin_len, payloads_s8003_bin_len, payloads_t7000_bin_len, payloads_t7001_bin_len, payloads_t8010_bin_len, payloads_t8011_bin_len, payloads_t8012_bin_len, payloads_t8015_bin_len;
+extern uint8_t s8000_bin[], s8001_bin[], s8003_bin[], t7000_bin[], t7001_bin[], t8010_bin[], t8011_bin[], t8012_bin[], t8015_bin[];
+extern unsigned s8000_bin_len, s8001_bin_len, s8003_bin_len, t7000_bin_len, t7001_bin_len, t8010_bin_len, t8011_bin_len, t8012_bin_len, t8015_bin_len;
 
-extern uint8_t payloads_Pongo_bin[], payloads_lz4dec_bin[];
-extern unsigned pongo_bin_len, payloads_lz4dec_bin_len;
+extern uint8_t Pongo_bin[], lz4dec_bin[];
+extern unsigned pongo_bin_len, lz4dec_bin_len;
 
 static uint16_t cpid;
 static const char *pwnd_str = " YOLO:checkra1n";
@@ -646,7 +646,7 @@ OPENRA1N_EXPORT bool openra1n_boot_pongo(usb_handle_t *handle, void* pongo_bin, 
     LOG_DEBUG("Compressing pongoOS");
     LOG_DEBUG("Appending shellcode to the top of pongoOS (512 bytes)");
     void *shellcode = malloc(512);
-    memcpy(shellcode, payloads_lz4dec_bin, payloads_lz4dec_bin_len);
+    memcpy(shellcode, lz4dec_bin, lz4dec_bin_len);
     size_t out_len = pongo_bin_len;
     void *out = malloc(out_len);
     compress_pongo(out, &out_len, pongo_bin, (size_t)pongo_bin_len);

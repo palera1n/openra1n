@@ -23,23 +23,13 @@
 
 #include <common/log.h>
 
-#include <payloads/s8000.h>
-#include <payloads/s8001.h>
-#include <payloads/s8003.h>
-#include <payloads/t7000.h>
-#include <payloads/t7001.h>
-#include <payloads/t8010.h>
-#include <payloads/t8011.h>
-#include <payloads/t8012.h>
-#include <payloads/t8015.h>
+#include <payloads.h>
 
-#include <payloads/Pongo.h>
+extern uint8_t s8000_bin[], s8001_bin[], s8003_bin[], t7000_bin[], t7001_bin[], t8010_bin[], t8011_bin[], t8012_bin[], t8015_bin[];
+extern unsigned s8000_bin_len, s8001_bin_len, s8003_bin_len, t7000_bin_len, t7001_bin_len, t8010_bin_len, t8011_bin_len, t8012_bin_len, t8015_bin_len;
 
-extern uint8_t payloads_s8000_bin[], payloads_s8001_bin[], payloads_s8003_bin[], payloads_t7000_bin[], payloads_t7001_bin[], payloads_t8010_bin[], payloads_t8011_bin[], payloads_t8012_bin[], payloads_t8015_bin[];
-extern unsigned payloads_s8000_bin_len, payloads_s8001_bin_len, payloads_s8003_bin_len, payloads_t7000_bin_len, payloads_t7001_bin_len, payloads_t8010_bin_len, payloads_t8011_bin_len, payloads_t8012_bin_len, payloads_t8015_bin_len;
-
-extern uint8_t payloads_Pongo_bin[];
-extern unsigned payloads_Pongo_bin_len;
+extern uint8_t Pongo_bin[];
+extern unsigned Pongo_bin_len;
 
 #define APPLE_VID (0x5AC)
 #define DFU_MODE_PID (0x1227)
@@ -56,7 +46,7 @@ int main(int argc, char **argv)
     LOG_INFO("Waiting for DFU mode device");
     checkm8(handle);
     openra1n_sleep_ms(3000);
-    openra1n_boot_pongo(handle, payloads_Pongo_bin, payloads_Pongo_bin_len);
+    openra1n_boot_pongo(handle, Pongo_bin, Pongo_bin_len);
     openra1n_close_usb_handle(handle);
     openra1n_free_handle(handle);
     return ret;
@@ -83,56 +73,56 @@ bool checkm8(usb_handle_t *handle)
         {
         case 0x8000:
             LOG_DEBUG("setting up stage 2 for s8000");
-            checkra1n_payload = payloads_s8000_bin;
-            checkra1n_payload_sz = payloads_s8000_bin_len;
+            checkra1n_payload = s8000_bin;
+            checkra1n_payload_sz = s8000_bin_len;
             break;
 
         case 0x8001:
             LOG_DEBUG("setting up stage 2 for s8001");
-            checkra1n_payload = payloads_s8001_bin;
-            checkra1n_payload_sz = payloads_s8001_bin_len;
+            checkra1n_payload = s8001_bin;
+            checkra1n_payload_sz = s8001_bin_len;
             break;
 
         case 0x8003:
             LOG_DEBUG("setting up stage 2 for s8003");
-            checkra1n_payload = payloads_s8003_bin;
-            checkra1n_payload_sz = payloads_s8003_bin_len;
+            checkra1n_payload = s8003_bin;
+            checkra1n_payload_sz = s8003_bin_len;
             break;
 
         case 0x7000:
             LOG_DEBUG("setting up stage 2 for t7000");
-            checkra1n_payload = payloads_t7000_bin;
-            checkra1n_payload_sz = payloads_t7000_bin_len;
+            checkra1n_payload = t7000_bin;
+            checkra1n_payload_sz = t7000_bin_len;
             break;
 
         case 0x7001:
             LOG_DEBUG("setting up stage 2 for t7001");
-            checkra1n_payload = payloads_t7001_bin;
-            checkra1n_payload_sz = payloads_t7001_bin_len;
+            checkra1n_payload = t7001_bin;
+            checkra1n_payload_sz = t7001_bin_len;
             break;
 
         case 0x8010:
             LOG_DEBUG("setting up stage 2 for t8010");
-            checkra1n_payload = payloads_t8010_bin;
-            checkra1n_payload_sz = payloads_t8010_bin_len;
+            checkra1n_payload = t8010_bin;
+            checkra1n_payload_sz = t8010_bin_len;
             break;
 
         case 0x8011:
             LOG_DEBUG("setting up stage 2 for t8011");
-            checkra1n_payload = payloads_t8011_bin;
-            checkra1n_payload_sz = payloads_t8011_bin_len;
+            checkra1n_payload = t8011_bin;
+            checkra1n_payload_sz = t8011_bin_len;
             break;
 
         case 0x8012:
             LOG_DEBUG("setting up stage 2 for t8012");
-            checkra1n_payload = payloads_t8012_bin;
-            checkra1n_payload_sz = payloads_t8012_bin_len;
+            checkra1n_payload = t8012_bin;
+            checkra1n_payload_sz = t8012_bin_len;
             break;
 
         case 0x8015:
             LOG_DEBUG("setting up stage 2 for t8015");
-            checkra1n_payload = payloads_t8015_bin;
-            checkra1n_payload_sz = payloads_t8015_bin_len;
+            checkra1n_payload = t8015_bin;
+            checkra1n_payload_sz = t8015_bin_len;
             break;
 
         default:

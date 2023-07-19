@@ -17,13 +17,8 @@ export CC AR RANLIB CFLAGS LDFLAGS LIBS
 
 all: openra1n libopenra1n
 
-include/payloads:
-	@mkdir -p include/payloads
-
-include/payloads/%.h: payloads/%.bin include/payloads
-	xxd -i $< >> $@
-
-payloads: $(patsubst %, include/payloads/%.h, lz4dec Pongo t7000 t7001 s8000 s8001 s8003 t8010 t8011 t8012 t8015)
+payloads:
+	$(MAKE) -C payloads
 
 lz4:
 	$(MAKE) -C lz4
@@ -38,6 +33,6 @@ clean:
 	$(MAKE) -C tools clean
 	$(MAKE) -C src clean
 	$(MAKE) -C lz4 clean
-	rm -rf include/payloads
+	$(MAKE) -C payloads clean
 
 .PHONY: all clean payloads openra1n libopenra1n lz4
