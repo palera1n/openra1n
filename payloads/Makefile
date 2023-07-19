@@ -5,7 +5,7 @@ all: payloads
 payloads: $(patsubst %, %.o, $(PAYLOAD_NAMES))
 
 %.o: %.c
-	$(CC) -c $(CFLAGS) $<
+	$(CC) -c $< $(CFLAGS)
 
 %.c: %.bin
 	xxd -i $< > $@
